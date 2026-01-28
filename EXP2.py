@@ -368,4 +368,4 @@ for name, tr, val in results:
 # relu_1hidden -> Train:0.9873  Val:0.9774
 # relu_2hidden -> Train:0.9975  Val:0.9801
 # tanh_2hidden -> Train:0.9920  Val:0.9768
-  
+
