@@ -14,7 +14,7 @@ import time
 np.random.seed(42)
 
  
-# 1. LOAD DATASET (Torch only for loading)
+# 1. LOAD DATASET  
  
 
 train_dataset = torchvision.datasets.MNIST(
@@ -203,7 +203,7 @@ class NeuralNetwork:
             images = images.cpu().numpy().reshape(images.shape[0], -1)
             labels = labels.cpu().numpy()
 
-            # ToTensor() already normalizes to [0,1]
+            
 
             y = one_hot(labels)
 
@@ -246,7 +246,7 @@ def train_model(config, exp_name):
             images = images.cpu().numpy().reshape(images.shape[0], -1)
             labels = labels.cpu().numpy()
 
-            # Note: ToTensor() already normalizes to [0,1], no need to divide by 255
+            
             y = one_hot(labels)
 
             preds = model.forward(images)
@@ -287,7 +287,7 @@ experiments = [
         "name": "relu_1hidden",
         "layers": [784, 128, 10],
         "activation": "relu",
-        "lr": 0.1,
+        "lr": 0.01,
         "epochs": 10
     },
 
@@ -295,7 +295,7 @@ experiments = [
         "name": "relu_2hidden",
         "layers": [784, 256, 128, 10],
         "activation": "relu",
-        "lr": 0.1,
+        "lr": 0.01,
         "epochs": 10
     },
 
@@ -303,7 +303,15 @@ experiments = [
         "name": "tanh_2hidden",
         "layers": [784, 256, 128, 10],
         "activation": "tanh",
-        "lr": 0.1,
+        "lr": 0.01,
+        "epochs": 10
+    },
+
+    {
+        "name": "sigmoid_2hidden",
+        "layers": [784, 256, 128, 10],
+        "activation": "sigmoid",
+        "lr": 0.01,
         "epochs": 10
     }
 ]
@@ -329,43 +337,55 @@ for name, tr, val in results:
 #Output
 
 # ===== Running relu_1hidden =====
-# Epoch 1/10 | Train Acc 0.9338 | Val Acc 0.9353 | time 6.69s
-# Epoch 2/10 | Train Acc 0.9535 | Val Acc 0.9502 | time 7.37s
-# Epoch 3/10 | Train Acc 0.9650 | Val Acc 0.9619 | time 6.55s
-# Epoch 4/10 | Train Acc 0.9708 | Val Acc 0.9671 | time 6.22s
-# Epoch 5/10 | Train Acc 0.9733 | Val Acc 0.9680 | time 5.78s
-# Epoch 6/10 | Train Acc 0.9764 | Val Acc 0.9697 | time 6.56s
-# Epoch 7/10 | Train Acc 0.9825 | Val Acc 0.9750 | time 6.40s
-# Epoch 8/10 | Train Acc 0.9845 | Val Acc 0.9759 | time 7.01s
-# Epoch 9/10 | Train Acc 0.9841 | Val Acc 0.9753 | time 7.55s
-# Epoch 10/10 | Train Acc 0.9873 | Val Acc 0.9774 | time 5.85s
+# Epoch 1/10 | Train Acc 0.8758 | Val Acc 0.8867 | time 5.96s
+# Epoch 2/10 | Train Acc 0.8969 | Val Acc 0.9031 | time 6.15s
+# Epoch 3/10 | Train Acc 0.9076 | Val Acc 0.9126 | time 5.89s
+# Epoch 4/10 | Train Acc 0.9143 | Val Acc 0.9174 | time 5.98s
+# Epoch 5/10 | Train Acc 0.9192 | Val Acc 0.9228 | time 6.47s
+# Epoch 6/10 | Train Acc 0.9244 | Val Acc 0.9286 | time 5.92s
+# Epoch 7/10 | Train Acc 0.9282 | Val Acc 0.9297 | time 5.82s
+# Epoch 8/10 | Train Acc 0.9321 | Val Acc 0.9339 | time 5.95s
+# Epoch 9/10 | Train Acc 0.9347 | Val Acc 0.9350 | time 5.80s
+# Epoch 10/10 | Train Acc 0.9377 | Val Acc 0.9387 | time 5.95s
 
 # ===== Running relu_2hidden =====
-# Epoch 1/10 | Train Acc 0.9496 | Val Acc 0.9465 | time 6.48s
-# Epoch 2/10 | Train Acc 0.9712 | Val Acc 0.9660 | time 7.39s
-# Epoch 3/10 | Train Acc 0.9299 | Val Acc 0.9135 | time 6.58s
-# Epoch 4/10 | Train Acc 0.9842 | Val Acc 0.9734 | time 6.51s
-# Epoch 5/10 | Train Acc 0.9872 | Val Acc 0.9746 | time 6.52s
-# Epoch 6/10 | Train Acc 0.9860 | Val Acc 0.9719 | time 6.56s
-# Epoch 7/10 | Train Acc 0.9934 | Val Acc 0.9785 | time 7.02s
-# Epoch 8/10 | Train Acc 0.9936 | Val Acc 0.9785 | time 6.54s
-# Epoch 9/10 | Train Acc 0.9956 | Val Acc 0.9783 | time 6.51s
-# Epoch 10/10 | Train Acc 0.9975 | Val Acc 0.9801 | time 7.25s
+# Epoch 1/10 | Train Acc 0.8940 | Val Acc 0.8976 | time 6.38s
+# Epoch 2/10 | Train Acc 0.9117 | Val Acc 0.9120 | time 6.26s
+# Epoch 3/10 | Train Acc 0.9244 | Val Acc 0.9228 | time 6.32s
+# Epoch 4/10 | Train Acc 0.9333 | Val Acc 0.9326 | time 6.32s
+# Epoch 5/10 | Train Acc 0.9396 | Val Acc 0.9391 | time 6.39s
+# Epoch 6/10 | Train Acc 0.9443 | Val Acc 0.9426 | time 6.26s
+# Epoch 7/10 | Train Acc 0.9489 | Val Acc 0.9473 | time 6.30s
+# Epoch 8/10 | Train Acc 0.9527 | Val Acc 0.9494 | time 6.31s
+# Epoch 9/10 | Train Acc 0.9558 | Val Acc 0.9526 | time 6.41s
+# Epoch 10/10 | Train Acc 0.9581 | Val Acc 0.9539 | time 6.41s
 
 # ===== Running tanh_2hidden =====
-# Epoch 1/10 | Train Acc 0.9384 | Val Acc 0.9338 | time 6.89s
-# Epoch 2/10 | Train Acc 0.9551 | Val Acc 0.9530 | time 7.18s
-# Epoch 3/10 | Train Acc 0.9708 | Val Acc 0.9625 | time 7.03s
-# Epoch 4/10 | Train Acc 0.9775 | Val Acc 0.9689 | time 7.12s
-# Epoch 5/10 | Train Acc 0.9802 | Val Acc 0.9700 | time 8.36s
-# Epoch 6/10 | Train Acc 0.9823 | Val Acc 0.9725 | time 6.75s
-# Epoch 7/10 | Train Acc 0.9874 | Val Acc 0.9744 | time 6.66s
-# Epoch 8/10 | Train Acc 0.9891 | Val Acc 0.9752 | time 6.74s
-# Epoch 9/10 | Train Acc 0.9863 | Val Acc 0.9734 | time 6.71s
-# Epoch 10/10 | Train Acc 0.9920 | Val Acc 0.9768 | time 6.72s
+# Epoch 1/10 | Train Acc 0.8924 | Val Acc 0.8968 | time 6.68s
+# Epoch 2/10 | Train Acc 0.9102 | Val Acc 0.9141 | time 6.79s
+# Epoch 3/10 | Train Acc 0.9184 | Val Acc 0.9196 | time 6.70s
+# Epoch 4/10 | Train Acc 0.9249 | Val Acc 0.9273 | time 6.60s
+# Epoch 5/10 | Train Acc 0.9304 | Val Acc 0.9303 | time 6.51s
+# Epoch 6/10 | Train Acc 0.9353 | Val Acc 0.9348 | time 6.50s
+# Epoch 7/10 | Train Acc 0.9392 | Val Acc 0.9384 | time 6.52s
+# Epoch 8/10 | Train Acc 0.9421 | Val Acc 0.9396 | time 6.50s
+# Epoch 9/10 | Train Acc 0.9448 | Val Acc 0.9416 | time 6.58s
+# Epoch 10/10 | Train Acc 0.9478 | Val Acc 0.9446 | time 6.61s
+
+# ===== Running sigmoid_2hidden =====
+# Epoch 1/10 | Train Acc 0.4866 | Val Acc 0.5108 | time 7.00s
+# Epoch 2/10 | Train Acc 0.6584 | Val Acc 0.6730 | time 6.98s
+# Epoch 3/10 | Train Acc 0.7424 | Val Acc 0.7521 | time 7.09s
+# Epoch 4/10 | Train Acc 0.7871 | Val Acc 0.7908 | time 7.13s
+# Epoch 5/10 | Train Acc 0.8094 | Val Acc 0.8118 | time 7.09s
+# Epoch 6/10 | Train Acc 0.8309 | Val Acc 0.8337 | time 7.02s
+# Epoch 7/10 | Train Acc 0.8465 | Val Acc 0.8479 | time 6.99s
+# Epoch 8/10 | Train Acc 0.8556 | Val Acc 0.8593 | time 6.96s
+# Epoch 9/10 | Train Acc 0.8638 | Val Acc 0.8663 | time 7.20s
+# Epoch 10/10 | Train Acc 0.8710 | Val Acc 0.8745 | time 7.25s
 
 # ======= FINAL RESULTS =======
-# relu_1hidden -> Train:0.9873  Val:0.9774
-# relu_2hidden -> Train:0.9975  Val:0.9801
-# tanh_2hidden -> Train:0.9920  Val:0.9768
-
+# relu_1hidden -> Train:0.9377  Val:0.9387
+# relu_2hidden -> Train:0.9581  Val:0.9539
+# tanh_2hidden -> Train:0.9478  Val:0.9446
+# sigmoid_2hidden -> Train:0.8710  Val:0.8745
