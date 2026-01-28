@@ -389,3 +389,5 @@ for name, tr, val in results:
 # relu_2hidden -> Train:0.9581  Val:0.9539
 # tanh_2hidden -> Train:0.9478  Val:0.9446
 # sigmoid_2hidden -> Train:0.8710  Val:0.8745
+
+#The images of the results are in the results folder
