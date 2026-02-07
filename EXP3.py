@@ -16,9 +16,9 @@ from torch.utils.data import DataLoader
 from torchvision import datasets, transforms, models
 
 
-# ------------------------------
+ 
 # 1. UTILS
-# ------------------------------
+ 
 
 def set_seed(seed=42):
     random.seed(seed)
@@ -39,9 +39,9 @@ def save_json(path, data):
         json.dump(data, f, indent=2)
 
 
-# ------------------------------
+ 
 # 2. DATA PREPROCESSING
-# ------------------------------
+ 
 
 def prepare_cats_dogs_from_kaggle(zip_path, output_root, val_split=0.2, seed=42):
     """
@@ -59,7 +59,7 @@ def prepare_cats_dogs_from_kaggle(zip_path, output_root, val_split=0.2, seed=42)
         with zipfile.ZipFile(zip_path, "r") as zf:
             zf.extractall(extract_dir)
 
-    # Kaggle zip has train/*.jpg
+   
     train_src = os.path.join(extract_dir, "train")
     if not os.path.isdir(train_src):
         raise FileNotFoundError("Expected train/ inside Kaggle zip")
@@ -151,9 +151,8 @@ def get_dataloaders(dataset, batch_size, num_workers, catsdogs_root=None, model_
     return train_loader, val_loader, classes
 
 
-# ------------------------------
+ 
 # 3. MODEL DEFINITION
-# ------------------------------
 
 def get_activation(name):
     if name == "relu":
@@ -216,9 +215,8 @@ class SimpleCNN(nn.Module):
         return self.classifier(x)
 
 
-# ------------------------------
+ 
 # 4. TRAINING AND EVALUATION
-# ------------------------------
 
 def build_optimizer(optim_name, params, lr):
     if optim_name == "sgd":
@@ -367,9 +365,9 @@ def run_resnet18(dataset, args, results_dir):
     return best
 
 
-# ------------------------------
+ 
 # 5. MAIN
-# ------------------------------
+
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Experiment-4: CNN Implementation")
