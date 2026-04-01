@@ -1,5 +1,5 @@
 
-"""EXP6: RNN for IMDB sentiment analysis  """
+"""Implement RNN for sentiment analysis on movie review- dataset of IMDB  """
 
 
 import tensorflow as tf

@@ -1,4 +1,4 @@
-# EXP: Bidirectional LSTM for IMDB Sentiment Analysis (Improved)
+# EXP: Implement bi-directional LSTM for sentiment analysis:- movie review dataset by IMDB
 
 import tensorflow as tf
 from tensorflow import keras

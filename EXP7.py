@@ -1,5 +1,6 @@
+# Implement LSTM for stock price dataset
+# dataset- yahoo financial historical dataset
 
-#exp 7
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt

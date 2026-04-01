@@ -1,3 +1,5 @@
+# Implement 1-D CNN for text classification  - dataset: IMDB
+
 import tensorflow as tf
 from tensorflow.keras.datasets import imdb
 from tensorflow.keras.preprocessing.sequence import pad_sequences
