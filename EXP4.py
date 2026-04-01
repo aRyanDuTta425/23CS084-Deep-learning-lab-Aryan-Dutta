@@ -1,196 +1,584 @@
-# Lab: RNN AND LSTM Implementation 
-# Name: Aryan Dutta
+# # Lab: CNN Implementation (Cats vs Dogs, CIFAR-10)
+# # Name: Aryan Dutta
 
+# import argparse
+# import json
+# import os
+# import random
+# import shutil
+# import zipfile
+# from datetime import datetime
+
+# import torch
+# import torch.nn as nn
+# import torch.optim as optim
+# from torch.utils.data import DataLoader
+# from torchvision import datasets, transforms, models
+
+
+ 
+# # 1. UTILS
+ 
+
+# def set_seed(seed=42):
+#     random.seed(seed)
+#     torch.manual_seed(seed)
+#     torch.cuda.manual_seed_all(seed)
+
+
+# def get_device():
+#     return torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+
+# def ensure_dir(path):
+#     os.makedirs(path, exist_ok=True)
+
+
+# def save_json(path, data):
+#     with open(path, "w") as f:
+#         json.dump(data, f, indent=2)
+
+
+ 
+# # 2. DATA PREPROCESSING
+ 
+
+# def prepare_cats_dogs_from_kaggle(zip_path, output_root, val_split=0.2, seed=42):
+#     """
+#     Expect Kaggle dogs-vs-cats zip. Creates:
+#     output_root/train/cat, output_root/train/dog
+#     output_root/val/cat, output_root/val/dog
+#     """
+#     if not os.path.isfile(zip_path):
+#         raise FileNotFoundError(f"Zip not found: {zip_path}")
+
+#     ensure_dir(output_root)
+#     extract_dir = os.path.join(output_root, "_raw")
+#     if not os.path.isdir(extract_dir):
+#         ensure_dir(extract_dir)
+#         with zipfile.ZipFile(zip_path, "r") as zf:
+#             zf.extractall(extract_dir)
+
+   
+#     train_src = os.path.join(extract_dir, "train")
+#     if not os.path.isdir(train_src):
+#         raise FileNotFoundError("Expected train/ inside Kaggle zip")
+
+#     class_map = {"cat": [], "dog": []}
+#     for name in os.listdir(train_src):
+#         if name.startswith("cat"):
+#             class_map["cat"].append(name)
+#         elif name.startswith("dog"):
+#             class_map["dog"].append(name)
+
+#     random.seed(seed)
+#     for cls, files in class_map.items():
+#         random.shuffle(files)
+#         split = int(len(files) * (1 - val_split))
+#         train_files = files[:split]
+#         val_files = files[split:]
+
+#         train_dst = os.path.join(output_root, "train", cls)
+#         val_dst = os.path.join(output_root, "val", cls)
+#         ensure_dir(train_dst)
+#         ensure_dir(val_dst)
+
+#         for fname in train_files:
+#             shutil.copy2(os.path.join(train_src, fname), os.path.join(train_dst, fname))
+#         for fname in val_files:
+#             shutil.copy2(os.path.join(train_src, fname), os.path.join(val_dst, fname))
+
+
+# def get_transforms(dataset, model_type):
+#     if dataset == "cifar10":
+#         if model_type == "resnet":
+#             return transforms.Compose([
+#                 transforms.Resize((224, 224)),
+#                 transforms.ToTensor(),
+#                 transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)),
+#             ])
+#         return transforms.Compose([
+#             transforms.ToTensor(),
+#             transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
+#         ])
+
+#     if dataset == "catsdogs":
+#         if model_type == "resnet":
+#             return transforms.Compose([
+#                 transforms.Resize((224, 224)),
+#                 transforms.ToTensor(),
+#                 transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)),
+#             ])
+#         return transforms.Compose([
+#             transforms.Resize((128, 128)),
+#             transforms.ToTensor(),
+#             transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
+#         ])
+
+#     raise ValueError("Unknown dataset")
+
+
+# def get_dataloaders(dataset, batch_size, num_workers, catsdogs_root=None, model_type="cnn"):
+#     if dataset == "cifar10":
+#         train_ds = datasets.CIFAR10(
+#             root="./data",
+#             train=True,
+#             download=True,
+#             transform=get_transforms("cifar10", model_type),
+#         )
+#         val_ds = datasets.CIFAR10(
+#             root="./data",
+#             train=False,
+#             download=True,
+#             transform=get_transforms("cifar10", model_type),
+#         )
+#         classes = train_ds.classes
+
+#     elif dataset == "catsdogs":
+#         if not catsdogs_root:
+#             raise ValueError("catsdogs_root is required for catsdogs")
+#         train_dir = os.path.join(catsdogs_root, "train")
+#         val_dir = os.path.join(catsdogs_root, "val")
+#         train_ds = datasets.ImageFolder(train_dir, transform=get_transforms("catsdogs", model_type))
+#         val_ds = datasets.ImageFolder(val_dir, transform=get_transforms("catsdogs", model_type))
+#         classes = train_ds.classes
+
+#     else:
+#         raise ValueError("Unknown dataset")
+
+#     train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True, num_workers=num_workers)
+#     val_loader = DataLoader(val_ds, batch_size=batch_size, shuffle=False, num_workers=num_workers)
+#     return train_loader, val_loader, classes
+
+
+ 
+# # 3. MODEL DEFINITION
+
+# def get_activation(name):
+#     if name == "relu":
+#         return nn.ReLU()
+#     if name == "tanh":
+#         return nn.Tanh()
+#     if name == "leaky_relu":
+#         return nn.LeakyReLU(0.1)
+#     raise ValueError("Unknown activation")
+
+
+# def init_weights(module, init_name):
+#     if isinstance(module, (nn.Conv2d, nn.Linear)):
+#         if init_name == "xavier":
+#             nn.init.xavier_uniform_(module.weight)
+#         elif init_name == "kaiming":
+#             nn.init.kaiming_uniform_(module.weight, nonlinearity="relu")
+#         elif init_name == "random":
+#             nn.init.uniform_(module.weight, -0.05, 0.05)
+#         else:
+#             raise ValueError("Unknown init")
+#         if module.bias is not None:
+#             nn.init.zeros_(module.bias)
+
+
+# class SimpleCNN(nn.Module):
+#     def __init__(self, in_channels, num_classes, activation_name):
+#         super().__init__()
+#         act = get_activation(activation_name)
+
+#         self.features = nn.Sequential(
+#             nn.Conv2d(in_channels, 32, kernel_size=3, padding=1),
+#             nn.BatchNorm2d(32),
+#             act,
+#             nn.MaxPool2d(2),
+
+#             nn.Conv2d(32, 64, kernel_size=3, padding=1),
+#             nn.BatchNorm2d(64),
+#             act,
+#             nn.MaxPool2d(2),
+
+#             nn.Conv2d(64, 128, kernel_size=3, padding=1),
+#             nn.BatchNorm2d(128),
+#             act,
+#             nn.MaxPool2d(2),
+#             nn.AdaptiveAvgPool2d((4, 4)),
+#         )
+
+#         self.classifier = nn.Sequential(
+#             nn.Dropout(0.5),
+#             nn.Linear(128 * 4 * 4, 256),
+#             act,
+#             nn.Dropout(0.5),
+#             nn.Linear(256, num_classes),
+#         )
+
+#     def forward(self, x):
+#         x = self.features(x)
+#         x = x.view(x.size(0), -1)
+#         return self.classifier(x)
+
+
+ 
+# # 4. TRAINING AND EVALUATION
+
+# def build_optimizer(optim_name, params, lr):
+#     if optim_name == "sgd":
+#         return optim.SGD(params, lr=lr, momentum=0.9)
+#     if optim_name == "adam":
+#         return optim.Adam(params, lr=lr)
+#     if optim_name == "rmsprop":
+#         return optim.RMSprop(params, lr=lr)
+#     raise ValueError("Unknown optimizer")
+
+
+# def train_one_epoch(model, loader, criterion, optimizer, device):
+#     model.train()
+#     running_loss = 0.0
+#     correct = 0
+#     total = 0
+
+#     for images, labels in loader:
+#         images = images.to(device)
+#         labels = labels.to(device)
+
+#         optimizer.zero_grad()
+#         outputs = model(images)
+#         loss = criterion(outputs, labels)
+#         loss.backward()
+#         optimizer.step()
+
+#         running_loss += loss.item() * images.size(0)
+#         _, preds = torch.max(outputs, 1)
+#         correct += (preds == labels).sum().item()
+#         total += labels.size(0)
+
+#     return running_loss / total, correct / total
+
+
+# def evaluate(model, loader, criterion, device):
+#     model.eval()
+#     running_loss = 0.0
+#     correct = 0
+#     total = 0
+
+#     with torch.no_grad():
+#         for images, labels in loader:
+#             images = images.to(device)
+#             labels = labels.to(device)
+#             outputs = model(images)
+#             loss = criterion(outputs, labels)
+
+#             running_loss += loss.item() * images.size(0)
+#             _, preds = torch.max(outputs, 1)
+#             correct += (preds == labels).sum().item()
+#             total += labels.size(0)
+
+#     return running_loss / total, correct / total
+
+
+# def run_cnn_grid(dataset, args, results_dir):
+#     activations = ["relu", "tanh", "leaky_relu"]
+#     inits = ["xavier", "kaiming", "random"]
+#     optimizers = ["sgd", "adam", "rmsprop"]
+
+#     train_loader, val_loader, classes = get_dataloaders(
+#         dataset,
+#         args.batch_size,
+#         args.num_workers,
+#         catsdogs_root=args.catsdogs_root,
+#         model_type="cnn",
+#     )
+
+#     input_channels = 3
+#     num_classes = len(classes)
+
+#     best = {"acc": 0.0, "path": None, "config": None}
+#     history = []
+
+#     for act in activations:
+#         for init_name in inits:
+#             for optim_name in optimizers:
+#                 model = SimpleCNN(input_channels, num_classes, act).to(args.device)
+#                 model.apply(lambda m: init_weights(m, init_name))
+
+#                 criterion = nn.CrossEntropyLoss()
+#                 optimizer = build_optimizer(optim_name, model.parameters(), args.lr)
+
+#                 for epoch in range(args.epochs):
+#                     train_loss, train_acc = train_one_epoch(
+#                         model, train_loader, criterion, optimizer, args.device
+#                     )
+#                     val_loss, val_acc = evaluate(model, val_loader, criterion, args.device)
+
+#                 record = {
+#                     "activation": act,
+#                     "init": init_name,
+#                     "optimizer": optim_name,
+#                     "train_loss": train_loss,
+#                     "train_acc": train_acc,
+#                     "val_loss": val_loss,
+#                     "val_acc": val_acc,
+#                 }
+#                 history.append(record)
+
+#                 if val_acc > best["acc"]:
+#                     best["acc"] = val_acc
+#                     best["config"] = record
+#                     best_path = os.path.join(results_dir, f"best_cnn_{dataset}.pth")
+#                     torch.save(model.state_dict(), best_path)
+#                     best["path"] = best_path
+
+#     save_json(os.path.join(results_dir, f"metrics_cnn_{dataset}.json"), history)
+#     return best
+
+
+# def run_resnet18(dataset, args, results_dir):
+#     train_loader, val_loader, classes = get_dataloaders(
+#         dataset,
+#         args.batch_size,
+#         args.num_workers,
+#         catsdogs_root=args.catsdogs_root,
+#         model_type="resnet",
+#     )
+
+#     num_classes = len(classes)
+#     model = models.resnet18(weights=models.ResNet18_Weights.DEFAULT)
+
+#     for param in model.parameters():
+#         param.requires_grad = False
+
+#     model.fc = nn.Linear(model.fc.in_features, num_classes)
+#     model = model.to(args.device)
+
+#     criterion = nn.CrossEntropyLoss()
+#     optimizer = optim.Adam(model.fc.parameters(), lr=args.lr)
+
+#     best = {"acc": 0.0, "path": None}
+
+#     for epoch in range(args.epochs):
+#         train_loss, train_acc = train_one_epoch(model, train_loader, criterion, optimizer, args.device)
+#         val_loss, val_acc = evaluate(model, val_loader, criterion, args.device)
+
+#         if val_acc > best["acc"]:
+#             best["acc"] = val_acc
+#             best_path = os.path.join(results_dir, f"best_resnet18_{dataset}.pth")
+#             torch.save(model.state_dict(), best_path)
+#             best["path"] = best_path
+
+#     return best
+
+
+ 
+# # 5. MAIN
+
+
+# def parse_args():
+#     parser = argparse.ArgumentParser(description="Experiment-4: CNN Implementation")
+#     parser.add_argument("--dataset", type=str, default="all", choices=["cifar10", "catsdogs", "all"])
+#     parser.add_argument("--catsdogs_root", type=str, default=None)
+#     parser.add_argument("--catsdogs_zip", type=str, default=None)
+#     parser.add_argument("--epochs", type=int, default=3)
+#     parser.add_argument("--batch_size", type=int, default=64)
+#     parser.add_argument("--num_workers", type=int, default=2)
+#     parser.add_argument("--lr", type=float, default=1e-3)
+#     parser.add_argument("--seed", type=int, default=42)
+#     return parser.parse_args()
+
+
+# def main():
+#     args = parse_args()
+#     set_seed(args.seed)
+#     args.device = get_device()
+
+#     results_dir = os.path.join("results", "exp4")
+#     ensure_dir(results_dir)
+
+#     if args.catsdogs_zip and args.catsdogs_root:
+#         prepare_cats_dogs_from_kaggle(args.catsdogs_zip, args.catsdogs_root)
+
+#     datasets_to_run = [args.dataset] if args.dataset != "all" else ["cifar10", "catsdogs"]
+
+#     summary = {
+#         "run_at": datetime.now().isoformat(),
+#         "device": str(args.device),
+#         "results": {},
+#     }
+
+#     for ds in datasets_to_run:
+#         cnn_best = run_cnn_grid(ds, args, results_dir)
+#         resnet_best = run_resnet18(ds, args, results_dir)
+#         summary["results"][ds] = {
+#             "cnn_best": cnn_best,
+#             "resnet18_best": resnet_best,
+#         }
+
+#     save_json(os.path.join(results_dir, "summary_exp4.json"), summary)
+
+
+# if __name__ == "__main__":
+#     main()
+
+
+import os, json, random, argparse
 import torch
 import torch.nn as nn
 import torch.optim as optim
-import pandas as pd
-import numpy as np
-import random
+from torchvision import datasets, transforms, models
+from torch.utils.data import DataLoader
+
+# ---- Utils ----
+def set_seed(s=42):
+    random.seed(s); torch.manual_seed(s); torch.cuda.manual_seed_all(s)
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# 1. LOAD DATA 
-data = pd.read_csv("/Users/aryandutta/aryan jee/DL LAB ARYAN DUTTA 23CS084/poems-100.csv")
-text = " ".join(data.iloc[:, 0].astype(str).tolist()).lower()
+def save_json(p, d): json.dump(d, open(p, "w"), indent=2)
 
-# 2. TOKENIZATION
-words = text.split()
-vocab = sorted(set(words))
-word2idx = {w: i for i, w in enumerate(vocab)}
-idx2word = {i: w for w, i in word2idx.items()}
-vocab_size = len(vocab)
+# ---- Data ----
+def get_loaders(dataset, bs, workers, root=None, model="cnn"):
+    tf = {
+        ("cifar10","cnn"): transforms.Compose([transforms.ToTensor(),
+            transforms.Normalize((0.49,0.48,0.44),(0.20,0.19,0.20))]),
+        ("cifar10","resnet"): transforms.Compose([
+            transforms.Resize((224,224)), transforms.ToTensor(),
+            transforms.Normalize((0.485,0.456,0.406),(0.229,0.224,0.225))]),
+        ("catsdogs","cnn"): transforms.Compose([
+            transforms.Resize((128,128)), transforms.ToTensor(),
+            transforms.Normalize((0.5,)*3,(0.5,)*3)]),
+        ("catsdogs","resnet"): transforms.Compose([
+            transforms.Resize((224,224)), transforms.ToTensor(),
+            transforms.Normalize((0.485,0.456,0.406),(0.229,0.224,0.225))])
+    }[(dataset, model)]
 
-# create sequences
-seq_len = 5
-inputs, targets = [], []
-for i in range(len(words) - seq_len):
-    seq = words[i:i+seq_len]
-    target = words[i+seq_len]
-    inputs.append([word2idx[w] for w in seq])
-    targets.append(word2idx[target])
+    if dataset=="cifar10":
+        train = datasets.CIFAR10("./data", True, download=True, transform=tf)
+        val = datasets.CIFAR10("./data", False, download=True, transform=tf)
+    else:
+        train = datasets.ImageFolder(os.path.join(root,"train"), tf)
+        val = datasets.ImageFolder(os.path.join(root,"val"), tf)
 
-inputs = torch.tensor(inputs)
-targets = torch.tensor(targets)
+    return (DataLoader(train, bs, True, num_workers=workers),
+            DataLoader(val, bs, False, num_workers=workers),
+            train.classes)
 
-#  3. ONE-HOT ENCODING 
-def one_hot_encode(x, vocab_size):
-    return torch.eye(vocab_size)[x]
+# ---- Model ----
+ACT = {"relu":nn.ReLU(), "tanh":nn.Tanh(), "leaky":nn.LeakyReLU(0.1)}
 
-# 4. MODEL
-class TextGenModel(nn.Module):
-    def __init__(self, vocab_size, embed_size, hidden_size, use_embedding, cell_type="RNN"):
+class CNN(nn.Module):
+    def __init__(self, nc, cls, act):
         super().__init__()
-        self.use_embedding = use_embedding
+        a = ACT[act]
+        self.f = nn.Sequential(
+            nn.Conv2d(nc,32,3,1,1), nn.BatchNorm2d(32), a, nn.MaxPool2d(2),
+            nn.Conv2d(32,64,3,1,1), nn.BatchNorm2d(64), a, nn.MaxPool2d(2),
+            nn.Conv2d(64,128,3,1,1), nn.BatchNorm2d(128), a,
+            nn.MaxPool2d(2), nn.AdaptiveAvgPool2d((4,4))
+        )
+        self.c = nn.Sequential(
+            nn.Dropout(0.5), nn.Linear(128*4*4,256), a,
+            nn.Dropout(0.5), nn.Linear(256,cls)
+        )
 
-        if use_embedding:
-            self.embedding = nn.Embedding(vocab_size, embed_size)
-            input_size = embed_size
-        else:
-            input_size = vocab_size
+    def forward(self,x): return self.c(self.f(x).view(x.size(0),-1))
 
-        if cell_type == "LSTM":
-            self.rnn = nn.LSTM(input_size, hidden_size, batch_first=True)
-        else:
-            self.rnn = nn.RNN(input_size, hidden_size, batch_first=True)
+def init_w(m, t):
+    if isinstance(m,(nn.Conv2d,nn.Linear)):
+        if t=="xavier": nn.init.xavier_uniform_(m.weight)
+        elif t=="kaiming": nn.init.kaiming_uniform_(m.weight)
+        else: nn.init.uniform_(m.weight,-0.05,0.05)
+        if m.bias is not None: nn.init.zeros_(m.bias)
 
-        self.fc = nn.Linear(hidden_size, vocab_size)
+OPT = {
+    "sgd": lambda p,lr: optim.SGD(p,lr,momentum=0.9),
+    "adam": lambda p,lr: optim.Adam(p,lr),
+    "rmsprop": lambda p,lr: optim.RMSprop(p,lr)
+}
 
-    def forward(self, x):
-        if self.use_embedding:
-            x = self.embedding(x)
-        out, _ = self.rnn(x)
-        out = self.fc(out[:, -1, :])
-        return out
+# ---- Train/Eval ----
+def run_epoch(model, loader, crit, opt=None):
+    train = opt is not None
+    model.train() if train else model.eval()
+    loss = correct = total = 0
 
-# 5. TRAIN FUNCTION
-def train_model(use_embedding=False, cell_type="RNN", epochs=50):
-    model = TextGenModel(vocab_size, 50, 128, use_embedding, cell_type).to(device)
-    criterion = nn.CrossEntropyLoss()
-    optimizer = optim.Adam(model.parameters(), lr=0.003)
+    with torch.set_grad_enabled(train):
+        for x,y in loader:
+            x,y = x.to(device), y.to(device)
+            out = model(x)
+            l = crit(out,y)
 
-    X = inputs.to(device)
-    y = targets.to(device)
+            if train:
+                opt.zero_grad(); l.backward(); opt.step()
 
-    if not use_embedding:
-        X = one_hot_encode(X, vocab_size).to(device)
+            loss += l.item()*x.size(0)
+            correct += (out.argmax(1)==y).sum().item()
+            total += y.size(0)
 
-    for epoch in range(epochs):
-        optimizer.zero_grad()
-        output = model(X)
-        loss = criterion(output, y)
-        loss.backward()
-        optimizer.step()
-        print(f"{cell_type} | Embedding={use_embedding} | Epoch {epoch+1}, Loss: {loss.item():.4f}")
+    return loss/total, correct/total
 
-    return model
+# ---- CNN Grid ----
+def cnn_grid(ds, args, out):
+    tl, vl, cls = get_loaders(ds,args.bs,args.w,args.root)
+    best, hist = {"acc":0}, []
 
-#6. TEXT GENERATION
-def generate_text(model, seed_text, length=20, use_embedding=False):
-    model.eval()
-    words_seed = seed_text.lower().split()
+    for a in ACT:
+        for i in ["xavier","kaiming","random"]:
+            for o in OPT:
+                m = CNN(3,len(cls),a).to(device)
+                m.apply(lambda x:init_w(x,i))
+                opt = OPT[o](m.parameters(),args.lr)
+                crit = nn.CrossEntropyLoss()
 
-    for _ in range(length):
-        seq = [word2idx.get(w, 0) for w in words_seed[-seq_len:]]
-        seq = torch.tensor([seq]).to(device)
+                for _ in range(args.ep):
+                    tr = run_epoch(m,tl,crit,opt)
+                    va = run_epoch(m,vl,crit)
 
-        if not use_embedding:
-            seq = one_hot_encode(seq, vocab_size).to(device)
+                rec = {"act":a,"init":i,"opt":o,"val_acc":va[1]}
+                hist.append(rec)
 
-        with torch.no_grad():
-            pred = model(seq)
-            next_word = idx2word[torch.argmax(pred).item()]
+                if va[1] > best["acc"]:
+                    best = {**rec,"acc":va[1]}
+                    torch.save(m.state_dict(), f"{out}/best_{ds}.pth")
 
-        words_seed.append(next_word)
+    save_json(f"{out}/metrics_{ds}.json", hist)
+    return best
 
-    return " ".join(words_seed)
+# ---- ResNet ----
+def resnet(ds,args,out):
+    tl, vl, cls = get_loaders(ds,args.bs,args.w,args.root,"resnet")
+    m = models.resnet18(weights=models.ResNet18_Weights.DEFAULT)
 
-# 7. TRAIN ALL MODELS 
-print("\n--- Training RNN + One-Hot ---")
-rnn_onehot = train_model(use_embedding=False, cell_type="RNN")
+    for p in m.parameters(): p.requires_grad=False
+    m.fc = nn.Linear(m.fc.in_features,len(cls))
+    m = m.to(device)
 
-print("\n--- Training LSTM + One-Hot ---")
-lstm_onehot = train_model(use_embedding=False, cell_type="LSTM")
+    opt = optim.Adam(m.fc.parameters(),lr=args.lr)
+    crit = nn.CrossEntropyLoss()
+    best = 0
 
-print("\n--- Training RNN + Embedding ---")
-rnn_embed = train_model(use_embedding=True, cell_type="RNN")
+    for _ in range(args.ep):
+        run_epoch(m,tl,crit,opt)
+        _, acc = run_epoch(m,vl,crit)
+        if acc>best:
+            best=acc
+            torch.save(m.state_dict(), f"{out}/resnet_{ds}.pth")
 
-print("\n--- Training LSTM + Embedding ---")
-lstm_embed = train_model(use_embedding=True, cell_type="LSTM")
+    return best
 
-# 8. GENERATE TEXT 
-seed = "the moon shines"
-print("\nGenerated (RNN + OneHot):")
-print(generate_text(rnn_onehot, seed, use_embedding=False))
+# ---- Main ----
+def main():
+    p = argparse.ArgumentParser()
+    p.add_argument("--dataset",default="all")
+    p.add_argument("--root")
+    p.add_argument("--ep",type=int,default=3)
+    p.add_argument("--bs",type=int,default=64)
+    p.add_argument("--w",type=int,default=2)
+    p.add_argument("--lr",type=float,default=1e-3)
+    args = p.parse_args()
 
-print("\nGenerated (LSTM + OneHot):")
-print(generate_text(lstm_onehot, seed, use_embedding=False))
+    set_seed()
+    os.makedirs("results",exist_ok=True)
 
-print("\nGenerated (RNN + Embedding):")
-print(generate_text(rnn_embed, seed, use_embedding=True))
+    dsets = ["cifar10","catsdogs"] if args.dataset=="all" else [args.dataset]
 
-print("\nGenerated (LSTM + Embedding):")
-print(generate_text(lstm_embed, seed, use_embedding=True))
+    for d in dsets:
+        print(d, cnn_grid(d,args,"results"), resnet(d,args,"results"))
 
-
-# Output
-# --- Training RNN + One-Hot ---
-# RNN | Embedding=False | Epoch 1, Loss: 8.8447
-# RNN | Embedding=False | Epoch 2, Loss: 8.7835
-# RNN | Embedding=False | Epoch 3, Loss: 8.6934
-# RNN | Embedding=False | Epoch 4, Loss: 8.5142
-# RNN | Embedding=False | Epoch 5, Loss: 8.1984
-# RNN | Embedding=False | Epoch 6, Loss: 7.7959
-# RNN | Embedding=False | Epoch 7, Loss: 7.4724
-# RNN | Embedding=False | Epoch 8, Loss: 7.2765
-# RNN | Embedding=False | Epoch 9, Loss: 7.1389
-# RNN | Embedding=False | Epoch 10, Loss: 7.0357
-
-# --- Training LSTM + One-Hot ---
-# LSTM | Embedding=False | Epoch 1, Loss: 8.8442
-# LSTM | Embedding=False | Epoch 2, Loss: 8.8183
-# LSTM | Embedding=False | Epoch 3, Loss: 8.7898
-# LSTM | Embedding=False | Epoch 4, Loss: 8.7537
-# LSTM | Embedding=False | Epoch 5, Loss: 8.7038
-# LSTM | Embedding=False | Epoch 6, Loss: 8.6320
-# LSTM | Embedding=False | Epoch 7, Loss: 8.5273
-# LSTM | Embedding=False | Epoch 8, Loss: 8.3752
-# LSTM | Embedding=False | Epoch 9, Loss: 8.1616
-# LSTM | Embedding=False | Epoch 10, Loss: 7.8855
-
-# --- Training RNN + Embedding ---
-# RNN | Embedding=True | Epoch 1, Loss: 8.8773
-# RNN | Embedding=True | Epoch 2, Loss: 8.7817
-# RNN | Embedding=True | Epoch 3, Loss: 8.6776
-# RNN | Embedding=True | Epoch 4, Loss: 8.5393
-# RNN | Embedding=True | Epoch 5, Loss: 8.3363
-# RNN | Embedding=True | Epoch 6, Loss: 8.0579
-# RNN | Embedding=True | Epoch 7, Loss: 7.7428
-# RNN | Embedding=True | Epoch 8, Loss: 7.4574
-# RNN | Embedding=True | Epoch 9, Loss: 7.2368
-# RNN | Embedding=True | Epoch 10, Loss: 7.0744
-
-# --- Training LSTM + Embedding ---
-# LSTM | Embedding=True | Epoch 1, Loss: 8.8511
-# LSTM | Embedding=True | Epoch 2, Loss: 8.8211
-# LSTM | Embedding=True | Epoch 3, Loss: 8.7894
-# LSTM | Embedding=True | Epoch 4, Loss: 8.7511
-# LSTM | Embedding=True | Epoch 5, Loss: 8.7008
-# LSTM | Embedding=True | Epoch 6, Loss: 8.6309
-# LSTM | Embedding=True | Epoch 7, Loss: 8.5316
-# LSTM | Embedding=True | Epoch 8, Loss: 8.3905
-# LSTM | Embedding=True | Epoch 9, Loss: 8.1970
-# LSTM | Embedding=True | Epoch 10, Loss: 7.9517
-
-# Generated (RNN + OneHot):
-# the moon shines the the the the the the the the the the the the the the the the the the the the
-
-# Generated (LSTM + OneHot):
-# the moon shines the the the the the the the the the the the the the the the the the the the the
-
-# Generated (RNN + Embedding):
-# the moon shines the the the of the the the the the the the the the the the the the the the the
-
-# Generated (LSTM + Embedding):
-# the moon shines the of the of the the the the of the the the the of the the the the of the
- 
+if __name__=="__main__":
+    main()
