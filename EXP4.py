@@ -582,3 +582,9 @@ def main():
 
 if __name__=="__main__":
     main()
+
+#Results:
+ 
+# cifar10 {'act': 'relu', 'init': 'kaiming', 'opt': 'adam', 'val_acc': 0.8423, 'acc': 0.8423} 0.9145 
+
+# catsdogs {'act': 'leaky', 'init': 'kaiming', 'opt': 'adam', 'val_acc': 0.8768, 'acc': 0.8768} 0.9321  
